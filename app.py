@@ -15,25 +15,18 @@ def send_tg_msg(chat_id, text):
     try:
         requests.post(url, json={"chat_id": chat_id, "text": text, "parse_mode": "Markdown"})
     except Exception as e:
-        print(f"Error sending message: {e}")
+        print(f"Error: {e}")
 
-# --- TWILIO SMS WEBHOOK ---
 @app.route('/sms', methods=['POST'])
 def sms_reply():
     from_no = request.form.get('From')
     body = request.form.get('Body')
-
-    # Send to YOU
     admin_msg = f"📩 *NEW USA SMS RECEIVED*\n\n📱 *From:* {from_no}\n💬 *Message:* {body}"
     send_tg_msg(ADMIN_ID, admin_msg)
-
-    # Send Proof to Channel
-    channel_msg = f"✅ *SUCCESSFUL ACTIVATION*\n📱 *Number:* {US_NUMBER}\n💬 *Status:* Code delivered to user."
+    channel_msg = f"✅ *NEW ACTIVATION*\n📱 *Number:* {US_NUMBER}\n💬 *Status:* Code delivered."
     send_tg_msg(CHANNEL_ID, channel_msg)
-
     return "OK", 200
 
-# --- TELEGRAM COMMANDS WEBHOOK ---
 @app.route('/telegram', methods=['POST'])
 def telegram_webhook():
     data = request.get_json()
@@ -44,43 +37,45 @@ def telegram_webhook():
     user_text = data["message"].get("text", "").lower().strip()
 
     if user_text == "/start":
-        msg = (f"🛡️ *ZeroThreat Intel: USA SMS System*\n\n"
-               f"Welcome! We provide premium US numbers for verification.\n\n"
-               f"💵 *Price:* $10 USDT / ~15,500 NGN\n\n"
-               f"👉 Use /pay for account details\n"
-               f"👉 Use /help for instructions")
+        msg = ("🛡️ *ZeroThreat Intel System*\n\n"
+               "Premium US Numbers & Facebook Accounts.\n\n"
+               "👉 /services - View Price List\n"
+               "👉 /pay - How to Buy\n"
+               "👉 /help - How to use")
+        send_tg_msg(chat_id, msg)
+
+    elif user_text == "/services":
+        msg = ("🛒 *ZEROTHREAT SERVICES*\n\n"
+               "1️⃣ **USA SMS Activation** — $10\n"
+               "   _For WhatsApp, TG, or Google._\n\n"
+               "2️⃣ **Fresh US Facebook Account** — $15\n"
+               "   _Made with US IP + US Number._\n\n"
+               "3️⃣ **Aged FB Account (2018-2021)** — $30\n"
+               "   _High trust for Ads/Marketplace._\n\n"
+               "👉 Type /pay to order.")
         send_tg_msg(chat_id, msg)
 
     elif user_text == "/pay":
-        pay_msg = ("💳 *PAYMENT METHODS (ZeroThreat)*\n\n"
-                   "🏦 **OPAY (Naira):** `7066549677` \n"
-                   "👤 **Name:** Chisom Emmanuel Boniface\n\n"
-                   "☀️ **SOLANA (USDT):** \n`8dtuyskTtsB78DFDPWZszarvDpedwftKYCoMdZwjHbxy`\n\n"
-                   "💎 **ETH (USDT):** \n`0x20d2708acd360cd0fd416766802e055295470fc1`\n\n"
-                   "✅ *Send receipt to @Lona_trit to receive your number.*")
-        send_tg_msg(chat_id, pay_msg)
+        msg = ("💳 *PAYMENT METHODS*\n\n"
+               "🏦 **OPAY:** `7066549677` (Chisom Emmanuel Boniface)\n"
+               "☀️ **SOLANA:** `8dtuyskTtsB78DFDPWZszarvDpedwftKYCoMdZwjHbxy`\n"
+               "💎 **ETH:** `0x20d2708acd360cd0fd416766802e055295470fc1`\n\n"
+               "✅ *Send receipt to @Lona_trit*")
+        send_tg_msg(chat_id, msg)
 
     elif user_text == "/help":
-        help_msg = (f"❓ *HOW TO USE THE SYSTEM*\n\n"
-                    f"1. Type /pay and choose a method.\n"
-                    f"2. Pay $10 and DM receipt to @Lona_trit.\n"
-                    f"3. Use number: `{US_NUMBER}` in your app.\n"
-                    f"4. The 6-digit code will appear in this chat.")
-        send_tg_msg(chat_id, help_msg)
-
-    elif user_text == "/terms":
-        terms_msg = ("⚖️ *TERMS OF SERVICE*\n\n"
-                     "• Each payment covers one successful code.\n"
-                     "• Numbers are private and high-quality.\n"
-                     "• Support: @Lona_trit\n"
-                     "• Updates: @ZeroThreatIntel")
-        send_tg_msg(chat_id, terms_msg)
+        msg = (f"❓ *HOW IT WORKS*\n\n"
+               f"1. Choose a service in /services\n"
+               f"2. Pay and DM receipt to @Lona_trit\n"
+               f"3. For SMS: Use `{US_NUMBER}`\n"
+               f"4. For FB: We send you login details.")
+        send_tg_msg(chat_id, msg)
 
     return "OK", 200
 
 @app.route('/')
 def home():
-    return "ZeroThreat Pro Online", 200
+    return "ZeroThreat Pro Active", 200
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
