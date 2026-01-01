@@ -4,6 +4,7 @@ from flask import Flask, request
 
 app = Flask(__name__)
 
+# --- CONFIGURATION ---
 TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN')
 ADMIN_ID = "7033049440"
 CHANNEL_ID = "-1002622160373"
@@ -21,27 +22,37 @@ def telegram_webhook():
     user_text = data["message"].get("text", "").lower().strip()
 
     if user_text == "/start":
-        msg = ("🛡️ *ZeroThreat Intel: The Reliable Plug* 🔌\n\n"
-               "Back-to-back drops! USA/UK Numbers & FB Verification.\n\n"
-               "👉 /services - See the Plug Menu\n"
-               "👉 /pay - Get Account Details\n"
-               "👉 /help - How to get your code")
+        msg = ("🛡️ *ZeroThreat Intel: Premium Plug* 🔌\n\n"
+               "Back-to-back drops! USA Numbers & FB Accounts ready.\n\n"
+               "👉 /services - Price List\n"
+               "👉 /tools - Free Download Links\n"
+               "👉 /pay - Buy Now")
         send_tg_msg(chat_id, msg)
 
     elif user_text == "/services":
         msg = ("📦 *ZEROTHREAT STOCK LIST*\n\n"
-               "✅ **USA/UK SMS Drop** — $10\n"
-               "✅ **Facebook Verification** — $15\n"
-               "✅ **Google Voice (GV)** — $20\n"
-               "✅ **Talkatone / TextPlus** — DM\n"
-               "✅ **Premium eSIMs** — DM\n\n"
+               "✅ **USA SMS Activation** — $10\n"
+               "✅ **Facebook Account** — $15\n"
+               "✅ **Google Voice** — $20\n"
                "🔥 *Fast Delivery like DHL!* Type /pay to order.")
+        send_tg_msg(chat_id, msg)
+
+    elif user_text == "/tools":
+        msg = ("🛠️ *ZEROTHREAT PREMIUM TOOLS*\n\n"
+               "Download the tools to keep your numbers 100% active:\n\n"
+               "📲 **Talkatone Pro:**\n"
+               "👉 [Download Here](https://shrinkme.click/QQi309)\n\n"
+               "📲 **TextPlus Fixed:**\n"
+               "👉 [Download Here](https://shrinkme.click/O8nzKJ)\n\n"
+               "🌐 **Proton VPN (US IP):**\n"
+               "👉 [Download Here](https://shrinkme.click/4quG8w)\n\n"
+               "⚠️ *Note: Bypass ads to reach the download.*")
         send_tg_msg(chat_id, msg)
 
     elif user_text == "/pay":
         msg = ("💳 *PAYMENT PORTAL*\n\n"
-               "🏦 **OPAY:** `7066549677` (Chisom Emmanuel Boniface)\n"
-               "☀️ **SOLANA:** `8dtuyskTtsB78DFDPWZszarvDpedwftKYCoMdZwjHbxy`\n"
+               "🏦 **OPAY:** `7066549677` (Chisom Emmanuel)\n"
+               "☀️ **SOL:** `8dtuyskTtsB78DFDPWZszarvDpedwftKYCoMdZwjHbxy`\n"
                "💎 **ETH:** `0x20d2708acd360cd0fd416766802e055295470fc1`\n\n"
                "📸 *Send receipt to @Lona_trit immediately!*")
         send_tg_msg(chat_id, msg)
