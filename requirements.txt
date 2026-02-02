@@ -1,4 +1,5 @@
-pyTelegramBotAPI
 flask
-python-dotenv
+pyTelegramBotAPI
+requests
 gunicorn
+python-dotenv
