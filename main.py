@@ -1,4 +1,4 @@
-import os, telebot, requests, time, threading
+import os, telebot, requests, time, threading, random
 from telebot import types
 from flask import Flask
 
@@ -6,13 +6,32 @@ TOKEN = os.environ.get('BOT_TOKEN')
 SIM_TOKEN = os.environ.get('SIM_TOKEN')
 ADMIN_ID = int(os.environ.get('ADMIN_ID', '7033049440'))
 ADMIN_USER = os.environ.get('ADMIN_USERNAME', '@Lona_trit')
-CHANNEL_ID = os.environ.get('CHANNEL_ID')
+CHANNEL_ID = os.environ.get('CHANNEL_ID', '-1002622160373')
 
 bot = telebot.TeleBot(TOKEN, threaded=False)
 app = Flask(__name__)
 
 @app.route('/')
 def home(): return "Sovereign Mega-Store Live", 200
+
+# --- AUTO-POSTER (THE NEWSPAPER) ---
+def channel_broadcaster():
+    news_updates = [
+        "📰 *SOVEREIGN DAILY:* \n🔥 USA Aged Facebook Accounts (2021) back in stock! \n💰 Price: $15 \n👉 Order: @Sovereign_Guard_Bot",
+        "⚡️ *FLASH SALE:* \nPremium VPN (30 Days) - High Speed. \n🛡 Protect your privacy for only $5! \n👉 Buy: @Sovereign_Guard_Bot",
+        "📲 *WHATSAPP PLUG:* \nGet your USA number for WhatsApp instantly. \n✅ 100% Automated. \n👉 Type /start to begin.",
+        "📊 *MARKET UPDATE:* \nTrust is our priority. 🤝 \nOver 100+ accounts delivered this week! \nContact @Lona_trit for bulk deals.",
+        "🛠 *TOOL BOX:* \nUpdated VPN configs and Google Voice fixes just added! \nCheck /shop now."
+    ]
+    
+    while True:
+        try:
+            msg = random.choice(news_updates)
+            bot.send_message(CHANNEL_ID, msg, parse_mode="Markdown")
+            # POST EVERY 30 MINUTES (1800 seconds)
+            time.sleep(1800) 
+        except:
+            time.sleep(60)
 
 # --- UTILITIES ---
 def get_stock(filename):
@@ -43,7 +62,7 @@ def check_sms(oid):
         return r.json().get('sms')
     except: return None
 
-# --- BOT COMMANDS ---
+# --- BOT HANDLERS ---
 @bot.message_handler(commands=['start'])
 def start(m):
     kb = types.ReplyKeyboardMarkup(resize_keyboard=True)
@@ -67,8 +86,8 @@ def text_handler(m):
 @bot.message_handler(content_types=['photo'])
 def receipt_handler(m):
     kb = types.InlineKeyboardMarkup()
-    kb.add(types.InlineKeyboardButton("✅ Appr WhatsApp", callback_data=f"ap_wa_{m.chat.id}"),
-           types.InlineKeyboardButton("✅ Appr Facebook", callback_data=f"ap_fb_{m.chat.id}"),
+    kb.add(types.InlineKeyboardButton("✅ Appr WA", callback_data=f"ap_wa_{m.chat.id}"),
+           types.InlineKeyboardButton("✅ Appr FB", callback_data=f"ap_fb_{m.chat.id}"),
            types.InlineKeyboardButton("✅ Appr VPN", callback_data=f"ap_vpn_{m.chat.id}"))
     bot.forward_message(ADMIN_ID, m.chat.id, m.message_id)
     bot.send_message(ADMIN_ID, f"New Receipt from {m.chat.id}! Release product?", reply_markup=kb)
@@ -100,19 +119,7 @@ def query_handler(call):
             if vpn: bot.send_message(uid, f"✅ *Approved!* VPN Config:\n\n`{vpn}`")
             else: bot.send_message(uid, "❌ VPN Stock Empty!")
 
-# --- STARTUP LOGIC ---
-def run_bot():
-    print("Bot Polling Starting...")
-    while True:
-        try:
-            bot.polling(none_stop=True, interval=2, timeout=20)
-        except:
-            time.sleep(5)
-
-# Start bot thread IMMEDIATELY
-threading.Thread(target=run_bot, daemon=True).start()
-
-# Gunicorn uses this 'app' object
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000))
-    app.run(host='0.0.0.0', port=port)
+    threading.Thread(target=channel_broadcaster, daemon=True).start()
+    threading.Thread(target=lambda: bot.infinity_polling(), daemon=True).start()
+    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 10000)))
