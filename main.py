@@ -21,15 +21,15 @@ def channel_broadcaster():
         "⚡️ *FLASH SALE:* \nPremium VPN (30 Days) - High Speed. \n🛡 Protect your privacy for only $5! \n👉 Buy: @Sovereign_Guard_Bot",
         "📲 *WHATSAPP PLUG:* \nGet your USA number for WhatsApp instantly. \n✅ 100% Automated. \n👉 Type /start to begin.",
         "📊 *MARKET UPDATE:* \nTrust is our priority. 🤝 \nOver 100+ accounts delivered this week! \nContact @Lona_trit for bulk deals.",
-        "🛠 *TOOL BOX:* \nUpdated VPN configs and Google Voice fixes just added! \nCheck /shop now."
+        "✅ *PROOF OF WORK:* \nAnother USA WA number delivered successfully! \nJoin the winning team. 🚀",
+        "💸 *RECENT TRANSACTION:* \nAged Facebook account released to client. \nStatus: ACTIVE ✅"
     ]
     
     while True:
         try:
             msg = random.choice(news_updates)
             bot.send_message(CHANNEL_ID, msg, parse_mode="Markdown")
-            # POST EVERY 30 MINUTES (1800 seconds)
-            time.sleep(1800) 
+            time.sleep(1800) # 30 Minutes
         except:
             time.sleep(60)
 
@@ -99,6 +99,10 @@ def query_handler(call):
     if data[0] == "ap":
         prod, uid = data[1], data[2]
         bot.answer_callback_query(call.id, "Releasing...")
+        
+        # PROOF POSTER: This runs every time you approve a sale!
+        proof_text = f"🎉 *NEW SUCCESSFUL SALE!* \n📦 Item: {prod.upper()} \n✅ Status: Delivered \n👤 Customer: Verified \n\n🛒 Buy yours here: @Sovereign_Guard_Bot"
+        
         if prod == "wa":
             res = buy_num("whatsapp")
             if res and 'phone' in res:
@@ -108,15 +112,20 @@ def query_handler(call):
                     sms = check_sms(res['id'])
                     if sms:
                         bot.send_message(uid, f"📩 *CODE:* `{sms[0]['code']}`")
+                        bot.send_message(CHANNEL_ID, proof_text, parse_mode="Markdown")
                         return
                 bot.send_message(uid, "❌ SMS Timeout.")
         elif prod == "fb":
             acc = get_stock("fb_stock.txt")
-            if acc: bot.send_message(uid, f"✅ *Approved!* FB:\n`{acc}`")
+            if acc: 
+                bot.send_message(uid, f"✅ *Approved!* FB:\n`{acc}`")
+                bot.send_message(CHANNEL_ID, proof_text, parse_mode="Markdown")
             else: bot.send_message(uid, "❌ FB Stock Empty!")
         elif prod == "vpn":
             vpn = get_stock("vpn_stock.txt")
-            if vpn: bot.send_message(uid, f"✅ *Approved!* VPN Config:\n\n`{vpn}`")
+            if vpn: 
+                bot.send_message(uid, f"✅ *Approved!* VPN Config:\n\n`{vpn}`")
+                bot.send_message(CHANNEL_ID, proof_text, parse_mode="Markdown")
             else: bot.send_message(uid, "❌ VPN Stock Empty!")
 
 if __name__ == "__main__":
