@@ -2,4 +2,3 @@ flask
 pyTelegramBotAPI
 requests
 gunicorn
-python-dotenv
