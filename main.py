@@ -4,25 +4,28 @@ import telebot
 from telebot import types
 from flask import Flask, request
 import pg8000.native
-import time
+from dotenv import load_dotenv
 
+load_dotenv()
 app = Flask(__name__)
 
-# --- CONFIG ---
+# --- CONFIGURATION ---
 TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 SMM_API_KEY = os.environ.get("SMM_API_KEY")
 HELIUS_KEY = os.environ.get("HELIUS_API_KEY")
 ALCHEMY_KEY = os.environ.get("ALCHEMY_API_KEY")
 DB_URL = os.environ.get("DATABASE_URL")
 
+# Your Wallet Addresses
 SOL_WALLET = "B3iSYFxnm7cNmZvzdcKVD96kcycByuscgAFxSzPZBYFk"
 ETH_WALLET = "0x4cad79E8E231426855ED4A737773638cA23eD912"
+
 ADMIN_ID = 7033049440
 CHANNEL_ID = -1002622160373
 
 bot = telebot.TeleBot(TOKEN, threaded=False)
 
-# Pricing for Aged Accounts
+# --- PRICING ENGINE ---
 PRICES = {
     "FACEBOOK": {1: 5, 5: 15, 10: 40},
     "WHATSAPP": {1: 3, 5: 10, 10: 25},
@@ -31,8 +34,9 @@ PRICES = {
     "VPN": {1: 10}
 }
 
-# --- BLOCKCHAIN VERIFICATION ---
-def check_sol_payment(tx_hash, amount_expected):
+# --- BLOCKCHAIN VERIFICATION LOGIC ---
+def verify_sol_tx(tx_hash):
+    """Checks Solana blockchain via Helius API"""
     url = f"https://api.helius.xyz/v0/transactions/?api-key={HELIUS_KEY}"
     try:
         r = requests.post(url, json={"transactions": [tx_hash]})
@@ -40,67 +44,73 @@ def check_sol_payment(tx_hash, amount_expected):
         for tx in data:
             for transfer in tx.get('nativeTransfers', []):
                 if transfer['toUserAccount'] == SOL_WALLET:
-                    return True
-    except: return False
-    return False
+                    return True, transfer['amount'] / 1e9 # Convert lamports to SOL
+    except: return False, 0
+    return False, 0
 
-# --- MENUS ---
+# --- UI COMPONENTS ---
 def main_menu():
     markup = types.ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
-    markup.add("🛒 Market", "🚀 SMM Boost", "💳 My Wallet", "📰 Broadcast")
+    markup.add("🛒 Market", "🚀 SMM Boost", "💳 Wallet/Balance", "📰 Newsroom")
     return markup
 
+def market_markup():
+    markup = types.InlineKeyboardMarkup(row_width=1)
+    for cat in PRICES.keys():
+        markup.add(types.InlineKeyboardButton(f"📦 {cat}", callback_data=f"cat_{cat}"))
+    return markup
+
+# --- HANDLERS ---
 @bot.message_handler(commands=['start'])
 def start(m):
-    bot.send_message(m.chat.id, "👑 *Sovereign Intelligence System V2.0*\nSecure Account Trading & SMM Terminal.", 
+    bot.send_message(m.chat.id, "👑 *SOVEREIGN EMPIRE V2.0*\nAutomated Trading & SMM Terminal Active.", 
                      parse_mode='Markdown', reply_markup=main_menu())
 
 @bot.message_handler(func=lambda m: m.text == "🛒 Market")
-def market(m):
-    markup = types.InlineKeyboardMarkup()
-    for cat in PRICES.keys():
-        markup.add(types.InlineKeyboardButton(f"📦 {cat}", callback_data=f"cat_{cat}"))
-    bot.send_message(m.chat.id, "📊 *Select Asset Category:*", parse_mode='Markdown', reply_markup=markup)
+def show_market(m):
+    bot.send_message(m.chat.id, "📊 *Select Asset Category:*", parse_mode='Markdown', reply_markup=market_markup())
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("cat_"))
-def tiers(call):
+def show_tiers(call):
     cat = call.data.split("_")[1]
     markup = types.InlineKeyboardMarkup()
-    for yr, pr in PRICES[cat].items():
-        markup.add(types.InlineKeyboardButton(f"Age: {yr}yr | Price: ${pr}", callback_data=f"buy_{cat}_{yr}"))
-    bot.edit_message_text(f"💎 *{cat} Inventory Levels:*", call.message.chat.id, call.message.message_id, parse_mode='Markdown', reply_markup=markup)
+    for yr, price in PRICES[cat].items():
+        markup.add(types.InlineKeyboardButton(f"Age: {yr}yr | Price: ${price}", callback_data=f"buy_{cat}_{yr}"))
+    bot.edit_message_text(f"💎 *{cat} Inventory Levels:*", call.message.chat.id, call.message.message_id, 
+                          parse_mode='Markdown', reply_markup=markup)
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("buy_"))
-def buy_flow(call):
+def process_purchase(call):
     _, cat, yr = call.data.split("_")
     price = PRICES[cat][int(yr)]
-    msg = (f"🛡️ *INVOICE GENERATED*\n\n"
-           f"Item: {cat} Account ({yr}yr)\n"
-           f"Amount: ${price}\n\n"
-           f"📍 *SOL:* `{SOL_WALLET}`\n"
-           f"📍 *ETH:* `{ETH_WALLET}`\n\n"
-           "Send payment and click verify below.")
-    markup = types.InlineKeyboardMarkup()
-    markup.add(types.InlineKeyboardButton("✅ Verify Payment", callback_data="verify_pay"))
-    bot.send_message(call.message.chat.id, msg, parse_mode='Markdown', reply_markup=markup)
+    invoice = (f"🛡️ *INVOICE GENERATED*\n\n"
+               f"Asset: {cat} ({yr}yr)\n"
+               f"Cost: ${price}\n\n"
+               f"📍 *SOL:* `{SOL_WALLET}`\n"
+               f"📍 *ETH:* `{ETH_WALLET}`\n\n"
+               "Send payment and provide TX Hash via `/verify [HASH]`")
+    bot.send_message(call.message.chat.id, invoice, parse_mode='Markdown')
 
-# --- PROFESSIONAL BROADCAST ---
-@bot.message_handler(func=lambda m: m.text == "📰 Broadcast")
-def handle_broadcast(m):
+@bot.message_handler(func=lambda m: m.text == "📰 Newsroom")
+def broadcast_news(m):
     if m.from_user.id != ADMIN_ID: return
-
-    # Newspaper Content
-    news_msg = ("📰 *SOVEREIGN DAILY GAZETTE*\n"
-                "━━━━━━━━━━━━━━\n"
-                "✅ *NEW STOCK:* 10yr Aged FB Accounts\n"
-                "✅ *SMM:* All services stabilized\n"
-                "✅ *VPN:* High-speed nodes active\n\n"
-                "🛒 Shop now: @YourBotUsername")
-
-    # In a real scenario, you'd use Imagen API here. 
-    # For now, we send a high-quality formatted card.
+    news_msg = ("📰 *SOVEREIGN DAILY GAZETTE*\n━━━━━━━━━━━━━━\n"
+                "✅ *RESTOCK:* 10yr Aged FB & WA accounts.\n"
+                "✅ *SMM:* Engine running at 0.1s latency.\n"
+                "✅ *VPN:* New US/UK nodes added.\n\n"
+                "🔗 Join: @ZeroThreatIntel")
     bot.send_message(CHANNEL_ID, news_msg, parse_mode='Markdown')
-    bot.reply_to(m, "Gazette published to Channel.")
+    bot.reply_to(m, "Newspaper Published Successfully.")
+
+@bot.message_handler(commands=['verify'])
+def verify_payment(m):
+    tx_hash = m.text.replace("/verify ", "").strip()
+    bot.reply_to(m, "🔎 Scanning blockchain...")
+    success, amount = verify_sol_tx(tx_hash)
+    if success:
+        bot.reply_to(m, f"✅ Payment Confirmed! {amount} SOL received. Order is being processed.")
+    else:
+        bot.reply_to(m, "❌ Transaction not found. Ensure you sent to the correct wallet.")
 
 @app.route(f'/{TOKEN}', methods=['POST'])
 def webhook():
@@ -108,7 +118,7 @@ def webhook():
     return 'ok', 200
 
 @app.route('/')
-def index(): return "Enterprise Online", 200
+def index(): return "Empire System Online", 200
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8000)))
