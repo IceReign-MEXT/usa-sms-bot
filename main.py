@@ -5,7 +5,7 @@ import telebot
 
 app = Flask(__name__)
 
-# Config from Render Environment Variables
+# Config - Set these in Render Dashboard
 TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 SMM_API_KEY = os.environ.get("SMM_API_KEY")
 SMM_API_URL = "https://morethanpanel.com/api/v2"
@@ -49,10 +49,3 @@ def index():
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8000)))
-
-
-
-
-
-
-
