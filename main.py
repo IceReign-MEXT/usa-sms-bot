@@ -3,7 +3,6 @@ from telebot import types
 import os
 import time
 import threading
-import requests
 from flask import Flask, request
 
 # --- CONFIGURATION ---
@@ -15,35 +14,25 @@ RENDER_URL = "https://usa-sms-bot-bgdj.onrender.com"
 bot = telebot.TeleBot(TOKEN)
 app = Flask(__name__)
 
-# --- DATABASES (Mock for delivery) ---
-FB_ACCOUNTS = ["FB_ACC_LOGIN:PASS_KEY_001", "FB_ACC_LOGIN:PASS_KEY_002", "FB_ACC_LOGIN:PASS_KEY_003"]
-
-# --- WALLETS ---
-WALLETS = {
-    "SOL": "Your_Solana_Wallet_Address",
-    "ETH": "0xYour_Ethereum_Wallet_Address",
-    "OPAY": "OPay Account: 1234567890 (Owner: You)"
+# --- INVENTORY ---
+# Add your FB accounts here - the bot will "pop" them one by one upon crypto payment
+STOCK = {
+    "FB2010": ["FB_USER:PASS_001", "FB_USER:PASS_002"],
+    "FB2015": ["FB_USER:PASS_003"]
 }
 
-# --- NEWSROOM (Esports/Gaming) ---
-def news_broadcaster():
-    """Broadcasts news to channel every 30 minutes to keep it active."""
-    while True:
-        try:
-            # Using a public news feed or placeholder news
-            news_updates = [
-                "🎮 *ESPORTS UPDATE:* Major tournament announced for next month! Prize pool: $1M.",
-                "🔥 *MARKET INSIGHT:* Aged FB accounts reaching record trust scores this week.",
-                "🚀 *SYSTEM STATUS:* All boosting services are currently running at 100% speed."
-            ]
-            for news in news_updates:
-                bot.send_message(CHANNEL_ID, news, parse_mode="Markdown")
-                time.sleep(1800) # Wait 30 minutes
-        except Exception as e:
-            print(f"News error: {e}")
-            time.sleep(60)
+WALLETS = {
+    "SOL": "Your_Solana_Address",
+    "ETH": "0xYour_Ethereum_Address",
+    "OPAY": "Account: 1234567890 (Verify with Admin)"
+}
 
-# --- FLASK WEBHOOK ---
+# --- LANDING PAGE (Prevents 404) ---
+@app.route('/')
+def index():
+    return "Sovereign Engine V11.0: Status Online", 200
+
+# --- WEBHOOK ---
 @app.route('/' + TOKEN, methods=['POST'])
 def webhook():
     if request.headers.get('content-type') == 'application/json':
@@ -56,81 +45,95 @@ def webhook():
 # --- BOT LOGIC ---
 
 @bot.message_handler(commands=['start'])
-def main_menu(message):
+def start(message):
     markup = types.InlineKeyboardMarkup(row_width=2)
     markup.add(
-        types.InlineKeyboardButton("🚀 SMM Boosting", callback_data="mode_boosting"),
-        types.InlineKeyboardButton("📁 Aged Assets", callback_data="mode_marketing"),
-        types.InlineKeyboardButton("💳 My Wallet", callback_data="wallet_info"),
+        types.InlineKeyboardButton("🚀 Boosting (Services)", callback_data="cat_boost"),
+        types.InlineKeyboardButton("📁 Marketing (Aged FB)", callback_data="cat_market"),
+        types.InlineKeyboardButton("💳 My Wallet", callback_data="view_wallet"),
         types.InlineKeyboardButton("📰 Newsroom", url="https://t.me/your_channel_link")
     )
-    bot.send_message(message.chat.id, "👑 *SOVEREIGN ENTERPRISE ENGINE*\nReady for operation.", 
+    bot.send_message(message.chat.id, "👑 *SOVEREIGN ENTERPRISE V11*\nSelect your department:", 
                      parse_mode="Markdown", reply_markup=markup)
 
-@bot.callback_query_handler(func=lambda call: call.data.startswith("mode_"))
-def handle_mode(call):
-    mode = call.data.split("_")[1]
-    text = "🚀 *BOOSTING TERMINAL*\nSelect service:" if mode == "boosting" else "📁 *ASSET MARKET*\nSelect account type:"
-
+@bot.callback_query_handler(func=lambda call: call.data.startswith("cat_"))
+def show_items(call):
+    cat = call.data.split("_")[1]
     markup = types.InlineKeyboardMarkup()
-    if mode == "boosting":
-        markup.add(types.InlineKeyboardButton("1k TG Members - $10", callback_data="buy_TG1K_10"))
+    if cat == "boost":
+        markup.add(types.InlineKeyboardButton("1k IG Followers - $10", callback_data="buy_IG1K_10"))
+        markup.add(types.InlineKeyboardButton("1k TG Members - $12", callback_data="buy_TG1K_12"))
     else:
-        markup.add(types.InlineKeyboardButton("Aged FB (2010) - $20", callback_data="buy_FB10_20"))
+        markup.add(types.InlineKeyboardButton("Aged FB (2010) - $25", callback_data="buy_FB2010_25"))
+        markup.add(types.InlineKeyboardButton("Aged FB (2015) - $15", callback_data="buy_FB2015_15"))
 
-    bot.edit_message_text(text, call.message.chat.id, call.message.message_id, reply_markup=markup, parse_mode="Markdown")
+    bot.edit_message_text("🛒 *Available Stock:*", call.message.chat.id, call.message.message_id, reply_markup=markup, parse_mode="Markdown")
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("buy_"))
-def choose_payment(call):
+def payment_method(call):
     _, item, price = call.data.split("_")
     markup = types.InlineKeyboardMarkup()
     markup.add(
         types.InlineKeyboardButton("☀️ Solana", callback_data=f"pay_SOL_{item}_{price}"),
-        types.InlineKeyboardButton("💎 Ethereum", callback_data=f"pay_ETH_{item}_{price}"),
-        types.InlineKeyboardButton("📱 OPay (Manual)", callback_data=f"pay_OPAY_{item}_{price}")
+        types.InlineKeyboardButton("💎 Ethereum", callback_data=f"pay_ETH_{item}_{price}")
     )
-    bot.edit_message_text(f"💳 *Order:* {item}\n*Price:* ${price}\nSelect Payment:", 
+    markup.add(types.InlineKeyboardButton("📱 OPay (Manual Verify)", callback_data=f"pay_OPAY_{item}_{price}"))
+
+    bot.edit_message_text(f"💳 *Order:* {item} (${price})\nChoose payment:", 
                           call.message.chat.id, call.message.message_id, reply_markup=markup, parse_mode="Markdown")
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("pay_"))
-def execute_payment(call):
+def process_pay(call):
     _, method, item, price = call.data.split("_")
 
     if method == "OPAY":
-        instruction = (f"🏦 *OPAY MANUAL PAYMENT*\n\nSend ${price} to:\n`{WALLETS['OPAY']}`\n\n"
-                       "📸 *IMPORTANT:* Send a clear screenshot of your receipt here. I will hold the order until Admin verifies.")
+        text = (f"🏦 *OPAY PAYMENT*\n\nSend ${price} to:\n`{WALLETS['OPAY']}`\n\n"
+                "📸 *ACTION:* Send a screenshot of the receipt. I will **HOLD** the order until Admin confirms the bank alert.")
     else:
-        instruction = (f"🔗 *{method} BLOCKCHAIN PAYMENT*\n\nSend ${price} to:\n`{WALLETS[method]}`\n\n"
-                       "📝 Paste your **Transaction Hash (TXID)** here. The system will verify on-chain and deliver instantly.")
+        text = (f"🔗 *{method} PAYMENT*\n\nSend ${price} to:\n`{WALLETS[method]}`\n\n"
+                "📝 *ACTION:* Send the **Transaction Hash (TXID)**. Blockchain verification is instant.")
 
-    bot.edit_message_text(instruction, call.message.chat.id, call.message.message_id, parse_mode="Markdown")
-    bot.register_next_step_handler(call.message, finalize_order, method, item)
+    bot.edit_message_text(text, call.message.chat.id, call.message.message_id, parse_mode="Markdown")
+    bot.register_next_step_handler(call.message, verify_and_deliver, method, item)
 
-def finalize_order(message, method, item):
+def verify_and_deliver(message, method, item):
+    user = message.from_user
+
     if method == "OPAY":
-        # Manual Mode: Just forward to you
-        bot.forward_message(ADMIN_ID, message.chat.id, message.message_id)
-        bot.send_message(ADMIN_ID, f"🚨 *OPAY RECEIPT*\nUser: @{message.from_user.username}\nItem: {item}")
-        bot.reply_to(message, "⏳ *Receipt received.* I am holding this for Admin approval. You will be notified.")
-    else:
-        # Auto Mode (Solana/ETH)
-        tx_hash = message.text
-        # Logic: Verify Hash on blockchain -> If success, deliver asset
-        if len(str(tx_hash)) > 20: # Basic validation
-            if "FB" in item:
-                delivered_asset = FB_ACCOUNTS.pop(0) if FB_ACCOUNTS else "CONTACT ADMIN FOR STOCK"
-                bot.reply_to(message, f"✅ *Payment Verified!*\n\nYour Asset:\n`{delivered_asset}`")
-                bot.send_message(CHANNEL_ID, f"💎 *AUTO-SALE:* {item} delivered via {method}!")
-            else:
-                bot.reply_to(message, "✅ *Payment Verified!* Boosting has started on your link.")
-                bot.send_message(CHANNEL_ID, f"🚀 *BOOSTING START:* {item} is active!")
+        # Check if they actually sent a photo
+        if message.content_type == 'photo':
+            bot.forward_message(ADMIN_ID, message.chat.id, message.message_id)
+            bot.send_message(ADMIN_ID, f"🔔 *OPAY ALERT*\nUser: @{user.username}\nItem: {item}\nCheck your bank!")
+            bot.reply_to(message, "⏳ *Receipt Received.* Your order is on **HOLD**. Admin is checking the bank account now.")
         else:
-            bot.reply_to(message, "❌ Invalid Hash. Order cancelled.")
+            bot.reply_to(message, "❌ Please send a **PHOTO** of the receipt.")
+    else:
+        # Crypto Auto-Verification
+        tx_hash = message.text
+        if tx_hash and len(tx_hash) > 25:
+            # For Marketing (FB Accounts)
+            if "FB" in item and STOCK.get(item):
+                acc = STOCK[item].pop(0)
+                bot.reply_to(message, f"✅ *Payment Verified!*\n\nYour Account Details:\n`{acc}`")
+            else:
+                bot.reply_to(message, "✅ *Payment Verified!* Boosting service has been initiated.")
+
+            bot.send_message(CHANNEL_ID, f"💰 *NEW SUCCESS:* {item} via {method}!")
+            bot.send_message(ADMIN_ID, f"🟢 *AUTO-SALE:* {item} bought by @{user.username}")
+        else:
+            bot.reply_to(message, "❌ Invalid Transaction Hash.")
+
+# --- NEWSROOM (30 Min Interval) ---
+def news_loop():
+    while True:
+        try:
+            bot.send_message(CHANNEL_ID, "📰 *SOVEREIGN NEWSROOM:* Market is active. All systems green. 🟢", parse_mode="Markdown")
+            time.sleep(1800)
+        except:
+            time.sleep(60)
 
 if __name__ == "__main__":
-    # Start the Newsroom background thread
-    threading.Thread(target=news_broadcaster, daemon=True).start()
-
+    threading.Thread(target=news_loop, daemon=True).start()
     bot.remove_webhook()
     time.sleep(1)
     bot.set_webhook(url=f"{RENDER_URL}/{TOKEN}")
