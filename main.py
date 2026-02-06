@@ -5,6 +5,7 @@ import telebot
 
 app = Flask(__name__)
 
+# Config from Render Environment Variables
 TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 SMM_API_KEY = os.environ.get("SMM_API_KEY")
 SMM_API_URL = "https://morethanpanel.com/api/v2"
@@ -13,7 +14,8 @@ bot = telebot.TeleBot(TOKEN, threaded=False)
 
 @bot.message_handler(commands=['start'])
 def start(m):
-    bot.reply_to(m, "👑 *Sovereign Guard V1.5*\n\n`/boost [ID] [Link] [Qty]`\n`/balance`", parse_mode='Markdown')
+    text = "👑 *Sovereign Guard V1.5*\n\n`/boost [ID] [Link] [Qty]`\n`/balance`"
+    bot.reply_to(m, text, parse_mode='Markdown')
 
 @bot.message_handler(commands=['balance'])
 def balance(m):
@@ -30,8 +32,11 @@ def boost(m):
         bot.reply_to(m, "Usage: `/boost [ID] [Link] [Qty]`")
         return
     p = {'key': SMM_API_KEY, 'action': 'add', 'service': a[1], 'link': a[2], 'quantity': a[3]}
-    r = requests.post(SMM_API_URL, data=p).json()
-    bot.reply_to(m, f"✅ Order ID: {r['order']}" if "order" in r else f"❌ Error: {r.get('error')}")
+    try:
+        r = requests.post(SMM_API_URL, data=p).json()
+        bot.reply_to(m, f"✅ Order ID: {r['order']}" if "order" in r else f"❌ Error: {r.get('error')}")
+    except:
+        bot.reply_to(m, "❌ Request Failed")
 
 @app.route(f'/{TOKEN}', methods=['POST'])
 def webhook():
@@ -44,3 +49,10 @@ def index():
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8000)))
+
+
+
+
+
+
+
