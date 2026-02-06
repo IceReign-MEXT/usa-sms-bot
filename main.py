@@ -1,4 +1,4 @@
-git add main.pyimport telebot
+import telebot
 from telebot import types
 import os
 import time
@@ -98,7 +98,6 @@ def handle_verification(message, method, item):
         else:
             bot.reply_to(message, "❌ Please send a PHOTO of the receipt.")
     else:
-        # Crypto Auto-Delivery
         tx_hash = message.text
         if tx_hash and len(tx_hash) > 20:
             if "FB" in item and FB_STOCK:
@@ -111,12 +110,11 @@ def handle_verification(message, method, item):
         else:
             bot.reply_to(message, "❌ Invalid Hash. Transaction failed.")
 
-# --- NEWSROOM BROADCASTER ---
 def newsroom_auto():
     while True:
         try:
             bot.send_message(CHANNEL_ID, "📰 *ESPORTS NEWS:* Tournament updates and market insights incoming... 🎮", parse_mode="Markdown")
-            time.sleep(1800) # 30 Minutes
+            time.sleep(1800)
         except:
             time.sleep(60)
 
