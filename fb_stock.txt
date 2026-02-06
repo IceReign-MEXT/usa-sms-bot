@@ -1,3 +1,0 @@
-test_fb_user1:pass123:recovery1@mail.com
-test_fb_user2:pass456:recovery2@mail.com
-test_fb_user3:pass789:recovery3@mail.com
