@@ -4,102 +4,84 @@ import telebot
 from telebot import types
 from flask import Flask, request
 import pg8000.native
-from dotenv import load_dotenv
 
-load_dotenv()
 app = Flask(__name__)
 
 # --- CONFIG ---
 TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
-SMM_API_KEY = os.environ.get("SMM_API_KEY") # Ensure this is in Render
+SMM_API_KEY = os.environ.get("SMM_API_KEY")
 SMM_API_URL = "https://morethanpanel.com/api/v2"
 ADMIN_ID = 7033049440
 CHANNEL_ID = -1002622160373
 
 bot = telebot.TeleBot(TOKEN, threaded=False)
 
-# SMM SERVICE CONFIG (Live prices for your users)
-SMM_SERVICES = {
-    "1": {"name": "📸 Instagram Followers (Real)", "rate": 1.20},
-    "2": {"name": "🧵 Facebook Page Likes", "rate": 0.95},
-    "3": {"name": "✈️ Telegram Members (Non-Drop)", "rate": 2.10},
-    "4": {"name": "🎥 TikTok Views (Viral)", "rate": 0.05}
-}
+# DATABASE - In a real scenario, we'd save IDs to a file/DB. 
+# Here we use the Gazette for broad marketing.
 
 @bot.message_handler(commands=['start'])
 def start(m):
+    # Log user for marketing (logic placeholder)
     markup = types.ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
-    markup.add("🛒 Market", "🚀 SMM Boost", "💳 Wallet/Balance", "📰 Newsroom")
-    bot.send_message(m.chat.id, "👑 *SOVEREIGN EMPIRE V2.6*\nPremium Digital Assets & SMM Automation.", 
+    markup.add("🛒 Market", "🚀 SMM Boost", "💳 My Wallet", "📰 Newsroom")
+    bot.send_message(m.chat.id, "👑 *SOVEREIGN EMPIRE V3.1*\nYour Elite Assets are ready for deployment.", 
                      parse_mode='Markdown', reply_markup=markup)
 
-@bot.message_handler(func=lambda m: m.text == "🚀 SMM Boost")
-def smm_menu(m):
-    text = "🚀 *SMM BOOSTING ENGINES*\n\n*Live Rates (per 1k):*\n"
-    markup = types.InlineKeyboardMarkup()
-    for s_id, data in SMM_SERVICES.items():
-        text += f"• {data['name']}: `${data['rate']}`\n"
-        markup.add(types.InlineKeyboardButton(f"Order {data['name']}", callback_data=f"order_{s_id}"))
+# --- MARKETING BROADCAST ENGINE ---
+@bot.message_handler(commands=['mass'])
+def mass_broadcast(m):
+    """Allows Admin to send a direct message to the channel with 'HOT' stock alerts"""
+    if m.from_user.id != ADMIN_ID: return
 
-    text += "\n*How to order:* Click a service or use `/boost [ID] [Link] [Qty]`"
-    bot.send_message(m.chat.id, text, parse_mode='Markdown', reply_markup=markup)
-
-@bot.callback_query_handler(func=lambda call: call.data.startswith("order_"))
-def order_hint(call):
-    s_id = call.data.split("_")[1]
-    bot.answer_callback_query(call.id)
-    bot.send_message(call.message.chat.id, f"📝 *Service {s_id} Selected*\n\nPlease send your order in this format:\n`/boost {s_id} [Your_Link] [Quantity]`\n\n_Example: /boost {s_id} https://t.me/channel 1000_")
-
-@bot.message_handler(commands=['boost'])
-def execute_boost(m):
-    # Format: /boost [service_id] [link] [qty]
-    parts = m.text.split()
-    if len(parts) < 4:
-        bot.reply_to(m, "❌ *Incomplete Order*\nFormat: `/boost [ID] [Link] [Qty]`")
+    text = m.text.replace("/mass ", "")
+    if not text or text == "/mass":
+        bot.reply_to(m, "❌ Usage: `/mass [Your Marketing Message]`")
         return
 
-    bot.reply_to(m, "⏳ *Processing with SMM Hub...*")
-
-    payload = {
-        'key': SMM_API_KEY,
-        'action': 'add',
-        'service': parts[1],
-        'link': parts[2],
-        'quantity': parts[3]
-    }
-
-    try:
-        response = requests.post(SMM_API_URL, data=payload).json()
-        if "order" in response:
-            msg = (f"🚀 *BOOST SUCCESSFUL*\n"
-                   f"━━━━━━━━━━━━━━\n"
-                   f"📦 Order ID: `{response['order']}`\n"
-                   f"📡 Status: Queued for delivery\n"
-                   f"🔗 Target: {parts[2]}")
-            bot.send_message(m.chat.id, msg, parse_mode='Markdown')
-        else:
-            bot.reply_to(m, f"❌ *API Error:* {response.get('error', 'Unknown Error')}")
-    except Exception as e:
-        bot.reply_to(m, "❌ *System Offline:* Could not reach SMM provider.")
+    marketing_msg = (
+        "🚨 *URGENT ASSET ALERT*\n"
+        "━━━━━━━━━━━━━━━━━━━━\n"
+        f"{text}\n\n"
+        "⚡ *Action:* Use /start to buy now.\n"
+        "📡 *Source:* @ZeroThreatIntel"
+    )
+    bot.send_message(CHANNEL_ID, marketing_msg, parse_mode='Markdown')
+    bot.reply_to(m, "🚀 Marketing blast sent to Channel!")
 
 @bot.message_handler(func=lambda m: m.text == "📰 Newsroom")
 def professional_news(m):
     if m.from_user.id != ADMIN_ID: return
-
-    news = (
-        "🏙️ *SOVEREIGN DAILY GAZETTE*\n"
-        "━━━━━━━━━━━━━━━━━━━━━━━━\n"
-        "🔥 *NETWORK STATUS:* All Systems Nominal (100% Up)\n\n"
-        "📦 *MARKET INTELLIGENCE:*\n"
-        "• New Aged Accounts detect: WhatsApp (10yr) available.\n"
-        "• SMM Price Drop: Telegram members rates reduced.\n\n"
-        "🛠️ *WORKSHOP:* Python 3.11 Memory Shield Active.\n"
-        "━━━━━━━━━━━━━━━━━━━━━━━━\n"
-        "📡 *DETECTION:* Monitoring 50+ new business nodes...\n\n"
-        "🔗 Private Channel: @ZeroThreatIntel"
+    # This is designed to look like a high-end Bloomberg/Reuters terminal
+    gazette = (
+        "🏙️ *SOVEREIGN DAILY GAZETTE - INTEL REPORT*\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        "📊 *MARKET SENTIMENT:* BULLISH\n"
+        "🔥 *HOT STOCK:* 2014 Aged FB Accounts (Limited 5 units)\n\n"
+        "🚀 *SMM UPDATE:* TikTok Viral Engine now at 100% capacity.\n"
+        "🛡️ *SECURITY:* All customer data encrypted via Python 3.11.\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        "📡 *LIVE FEED:* New business opportunities detected in West Africa/US.\n\n"
+        "🔗 *OFFICIAL CHANNEL:* @ZeroThreatIntel"
     )
-    bot.send_message(CHANNEL_ID, news, parse_mode='Markdown')
-    bot.reply_to(m, "✅ Newspaper Published.")
+    bot.send_message(CHANNEL_ID, gazette, parse_mode='Markdown')
+    bot.reply_to(m, "✅ Gazette Dispatched.")
+
+@bot.message_handler(func=lambda m: m.text == "🚀 SMM Boost")
+def smm_marketing_view(m):
+    # Marketing-heavy view to encourage sales
+    text = (
+        "🚀 *ELITE SMM ACCELERATOR*\n"
+        "Boost your social presence with zero drop risk.\n\n"
+        "💎 *Premium Rates:* \n"
+        "• IG Followers: $2.50\n"
+        "• TG Members: $3.00\n"
+        "• FB Likes: $1.80\n\n"
+        "⚠️ *PROMO:* Deposit $50+ into wallet and get +10% bonus!"
+    )
+    markup = types.InlineKeyboardMarkup()
+    markup.add(types.InlineKeyboardButton("🛒 Buy Credits", callback_data="buy_credits"))
+    markup.add(types.InlineKeyboardButton("📈 Place Order", callback_data="order_smm"))
+    bot.send_message(m.chat.id, text, parse_mode='Markdown', reply_markup=markup)
 
 @app.route(f'/{TOKEN}', methods=['POST'])
 def webhook():
@@ -107,7 +89,7 @@ def webhook():
     return 'ok', 200
 
 @app.route('/')
-def index(): return "Empire V2.6 Online", 200
+def index(): return "Marketing Engine V3.1 Live", 200
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8000)))
