@@ -1,95 +1,124 @@
+import os
 import telebot
 from telebot import types
-import os
-import time
-import requests
 from flask import Flask, request
 
-# --- CONFIG ---
-TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
-ADMIN_ID = int(os.getenv('ADMIN_ID', '7033049440'))
-CHANNEL_ID = os.getenv('CHANNEL_ID', '-1002622160373')
-RENDER_URL = "https://usa-sms-bot-bgdj.onrender.com"
-
-# MoreThanPanel Configuration
-PANEL_API_KEY = os.getenv('PANEL_API_KEY') # Securely loaded from Render Env
-PANEL_API_URL = "https://morethanpanel.com/api/v2"
-
-bot = telebot.TeleBot(TOKEN)
 app = Flask(__name__)
 
-# --- API HELPER FUNCTIONS ---
-def get_panel_data(action, params=None):
-    payload = {'key': PANEL_API_KEY, 'action': action}
-    if params: payload.update(params)
-    try:
-        r = requests.post(PANEL_API_URL, data=payload)
-        return r.json()
-    except:
-        return None
+# --- CONFIG ---
+TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
+ADMIN_ID = 7033049440
+CHANNEL_ID = -1002622160373
 
-# --- BOT HANDLERS ---
+# Payment Details
+SOL_ADDR = "B3iSYFxnm7cNmZvzdcKVD96kcycByuscgAFxSzPZBYFk"
+OPAY_ACC = "7066549677 (Opay)"
+
+bot = telebot.TeleBot(TOKEN, threaded=False)
+
+# --- INVENTORY DATA ---
+MARKET_INVENTORY = {
+    "fb_1yr": {"name": "🛡️ Facebook (1yr Aged)", "price": 5.0, "stock": 42},
+    "fb_5yr": {"name": "👑 Facebook (5yr Elite)", "price": 15.0, "stock": 12},
+    "tg_acc": {"name": "✈️ Telegram Aged Account", "price": 8.0, "stock": 15},
+    "wa_acc": {"name": "🟢 WhatsApp High-Trust", "price": 12.0, "stock": 8}
+}
+
+SMM_SERVICES = {
+    "s1": {"name": "📸 Instagram Followers", "rate": 1.2},
+    "s2": {"name": "🧵 Facebook Page Likes", "rate": 0.95},
+    "s3": {"name": "✈️ Telegram Members", "rate": 2.1}
+}
+
+def main_menu():
+    markup = types.ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
+    markup.add("🛒 Market", "🚀 SMM Boost", "💳 My Wallet", "📰 Newsroom")
+    return markup
+
 @bot.message_handler(commands=['start'])
-def start(message):
-    markup = types.InlineKeyboardMarkup(row_width=2)
-    markup.add(
-        types.InlineKeyboardButton("🚀 SMM Services", callback_data="view_services"),
-        types.InlineKeyboardButton("📁 Aged Assets", callback_data="view_assets"),
-        types.InlineKeyboardButton("💳 My Wallet", callback_data="wallet_info"),
-        types.InlineKeyboardButton("🎁 Earn $5", callback_data="giveaway")
-    )
-    bot.send_message(message.chat.id, "👑 *SOVEREIGN ENTERPRISE V13.1*\nSMM API: *Connected* ✅", 
-                     parse_mode="Markdown", reply_markup=markup)
+def start(m):
+    bot.send_message(m.chat.id, "👑 *SOVEREIGN EMPIRE V5.0*\nDigital Asset Terminal & SMM Automation Active.", 
+                     parse_mode='Markdown', reply_markup=main_menu())
 
-@bot.callback_query_handler(func=lambda call: call.data == "wallet_info")
-def check_wallet(call):
-    # Fetch your actual balance from MoreThanPanel
-    data = get_panel_data('balance')
-    balance = data.get('balance', '0.00') if data else "Error"
-    currency = data.get('currency', 'USD') if data else ""
+# --- 🛒 AUTOMATED MARKET (ASSETS) ---
+@bot.message_handler(func=lambda m: m.text == "🛒 Market")
+def market_menu(m):
+    markup = types.InlineKeyboardMarkup()
+    text = "💎 *DIGITAL ASSET INVENTORY*\nSelect an item to purchase:\n\n"
+    for key, item in MARKET_INVENTORY.items():
+        text += f"• {item['name']} — `${item['price']}`\n"
+        markup.add(types.InlineKeyboardButton(f"Buy {item['name']}", callback_data=f"buy_{key}"))
+    bot.send_message(m.chat.id, text, parse_mode='Markdown', reply_markup=markup)
 
-    text = (f"💳 *YOUR WALLET STATUS*\n\n"
-            f"💰 *Panel Balance:* {balance} {currency}\n"
-            f"👤 *Admin ID:* `{ADMIN_ID}`\n\n"
-            "Use OPay or Crypto to add funds.")
-    bot.edit_message_text(text, call.message.chat.id, call.message.message_id, parse_mode="Markdown")
+@bot.callback_query_handler(func=lambda call: call.data.startswith("buy_"))
+def handle_purchase(call):
+    item_key = call.data.split("_")[1]
+    item = MARKET_INVENTORY[item_key]
+    bot.answer_callback_query(call.id)
 
-@bot.callback_query_handler(func=lambda call: call.data == "view_services")
-def list_services(call):
-    services = get_panel_data('services')
-    if not services or "error" in str(services):
-        bot.answer_callback_query(call.id, "❌ API Key Error or Empty Balance", show_alert=True)
-        return
+    # Generate Invoice Text
+    invoice = (f"🛡️ *INVOICE GENERATED*\n"
+               f"━━━━━━━━━━━━━━\n"
+               f"Asset: {item['name']}\n"
+               f"Cost: `${item['price']}`\n\n"
+               f"📍 SOL: `{SOL_ADDR}`\n"
+               f"📍 CASH: `{OPAY_ACC}`\n\n"
+               "Select payment method below:")
 
     markup = types.InlineKeyboardMarkup()
-    # Displaying top 5 most popular services to avoid clutter
-    for s in services[:10]:
-        markup.add(types.InlineKeyboardButton(f"{s['name'][:25]} - ${s['rate']}", callback_data=f"info_{s['service']}"))
+    markup.add(types.InlineKeyboardButton("🔗 Paid Crypto (Verify)", callback_data=f"verify_{item_key}"))
+    markup.add(types.InlineKeyboardButton("💸 Paid Cash (Notify Admin)", callback_data=f"cash_notify_{item_key}"))
+    bot.send_message(call.message.chat.id, invoice, parse_mode='Markdown', reply_markup=markup)
 
-    bot.edit_message_text("📊 *Live API Service List:*", call.message.chat.id, call.message.message_id, reply_markup=markup, parse_mode="Markdown")
+# --- 🚀 AUTOMATED SMM (BOOSTING) ---
+@bot.message_handler(func=lambda m: m.text == "🚀 SMM Boost")
+def smm_menu(m):
+    markup = types.InlineKeyboardMarkup()
+    text = "🚀 *SMM BOOSTING ENGINES*\nSelect service to calculate price:\n"
+    for sid, data in SMM_SERVICES.items():
+        markup.add(types.InlineKeyboardButton(f"{data['name']} (${data['rate']}/1k)", callback_data=f"calc_{sid}"))
+    bot.send_message(m.chat.id, text, parse_mode='Markdown', reply_markup=markup)
 
-@bot.callback_query_handler(func=lambda call: call.data == "giveaway")
-def giveaway_details(call):
-    text = ("🎁 *MORETHANPANEL GIVEAWAY*\n\n"
-            "• Post our video on TikTok/Instagram.\n"
-            "• Mention morethanpanel.com in caption.\n"
-            "• Earn $0.5 per 1,000 views.\n\n"
-            "Submit your link to @Admin for verification.")
-    bot.send_message(call.message.chat.id, text, parse_mode="Markdown")
+@bot.callback_query_handler(func=lambda call: call.data.startswith("calc_"))
+def smm_calc(call):
+    sid = call.data.split("_")[1]
+    msg = bot.send_message(call.message.chat.id, "🔢 *Enter Quantity:*")
+    bot.register_next_step_handler(msg, process_smm_price, sid)
 
-# --- WEBHOOK SETUP ---
-@app.route('/')
-def home(): return "Sovereign API Online", 200
+def process_smm_price(m, sid):
+    try:
+        qty = int(m.text)
+        total = (qty / 1000) * SMM_SERVICES[sid]['rate']
+        msg = bot.send_message(m.chat.id, f"💰 *Price: ${total:.2f}*\n\nPaste your Target Link:")
+        bot.register_next_step_handler(msg, process_smm_final, sid, total, qty)
+    except: bot.send_message(m.chat.id, "❌ Invalid Number.")
 
-@app.route('/' + TOKEN, methods=['POST'])
+def process_smm_final(m, sid, total, qty):
+    link = m.text
+    invoice = (f"🛡️ *SMM ORDER INVOICE*\n"
+               f"━━━━━━━━━━━━━━\n"
+               f"Service: {SMM_SERVICES[sid]['name']}\n"
+               f"Price: `${total:.2f}`\n\n"
+               f"📍 SOL: `{SOL_ADDR}`\n"
+               f"📍 CASH: `{OPAY_ACC}`\n\n"
+               "Choose payment method:")
+    markup = types.InlineKeyboardMarkup()
+    markup.add(types.InlineKeyboardButton("🔗 Verify Crypto", callback_data=f"v_smm_{total}"))
+    markup.add(types.InlineKeyboardButton("💸 Notify Admin (Cash)", callback_data=f"c_smm_{total}"))
+    bot.send_message(m.chat.id, invoice, parse_mode='Markdown', reply_markup=markup)
+
+# --- NOTIFICATION SYSTEM ---
+@bot.callback_query_handler(func=lambda call: "notify" in call.data or call.data.startswith("c_"))
+def admin_notification(call):
+    # This notifies your Private Channel and Admin ID
+    bot.send_message(ADMIN_ID, f"🔔 *NEW CASH REQUEST*\nUser: {call.from_user.id}\nData: {call.data}")
+    bot.send_message(CHANNEL_ID, f"📊 *Live Activity:* User `{call.from_user.id}` is completing a purchase.")
+    bot.edit_message_text("✅ Admin notified. Waiting for cash confirmation.", call.message.chat.id, call.message.message_id)
+
+@app.route(f'/{TOKEN}', methods=['POST'])
 def webhook():
-    if request.headers.get('content-type') == 'application/json':
-        bot.process_new_updates([telebot.types.Update.de_json(request.get_data().decode('utf-8'))])
-        return '', 200
-    return 'Forbidden', 403
+    bot.process_new_updates([telebot.types.Update.de_json(request.get_data().decode('utf-8'))])
+    return 'ok', 200
 
 if __name__ == "__main__":
-    bot.remove_webhook()
-    time.sleep(1)
-    bot.set_webhook(url=f"{RENDER_URL}/{TOKEN}")
-    app.run(host="0.0.0.0", port=int(os.environ.get('PORT', 8000)))
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8000)))
